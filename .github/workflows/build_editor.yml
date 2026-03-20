@@ -1,46 +1,29 @@
-name: Fix Dragon Age Save GOTY
+name: Gerar Editor EXE Henrique
 on: [push, workflow_dispatch]
 
 jobs:
-  patch_save:
-    runs-on: ubuntu-latest # Linux é mais rápido e não tem erro de aspas
+  build:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '6.0.x'
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-      - name: Create Patcher Script
+      - name: Remover Telerik (O Vilão)
         run: |
-          cat <<EOF > Patcher.cs
-          using System;
-          using System.IO;
-          // Vamos usar a lógica exata do DA3CRC.cs que você tem aí
-          class Program {
-              static void Main() {
-                  string fileName = "DAISAVECHAP3A51575B.DAS";
-                  if (!File.Exists(fileName)) { Console.WriteLine("Save não encontrado!"); return; }
-                  byte[] data = File.ReadAllBytes(fileName);
-                  
-                  // Injetando Hawke Maga Mulher nos offsets padrões
-                  // 01 = Female, 02 = Mage
-                  data[0x1D0] = 0x01; 
-                  data[0x1D1] = 0x02;
+          # Vamos apagar as referências que estão quebrando o seu build
+          (Get-Content "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj") -replace 'Telerik.WinControls', 'System.Windows.Forms' | Set-Content "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
 
-                  // Aqui o Workflow chamaria a lógica do Jappi88
-                  Console.WriteLine("Aplicando Checksum da GOTY Edition...");
-                  File.WriteAllBytes("FIXED_HAWKE_LVL50.DAS", data);
-              }
-          }
-          EOF
+      - name: Build Executável
+        run: |
+          msbuild "Dragon Age Inquisition Save Editor.sln" `
+          /p:Configuration=Release `
+          /p:Platform="Any CPU" `
+          /p:TargetFrameworkVersion=v4.8
 
-      - name: Run Patcher
-        run: dotnet run --project . # Isso vai gerar o seu save "curado"
-
-      - name: Upload Fixed Save
+      - name: Upload Editor EXE
         uses: actions/upload-artifact@v4
         with:
-          name: Save_Pronto_Henrique
-          path: FIXED_HAWKE_LVL50.DAS
+          name: Editor_DAI_Henrique
+          path: "**/bin/Release/*.exe"
