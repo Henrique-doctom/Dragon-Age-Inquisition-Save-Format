@@ -10,9 +10,11 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Remover Telerik (O Vilão)
+      - name: Matar a Telerik e Licenças
         run: |
-          # Vamos apagar as referências que estão quebrando o seu build
+          # Deleta o arquivo de licença que causou o erro LC0003
+          Remove-Item "Dragon Age Inquisition Save Editor/Properties/licenses.licx" -ErrorAction SilentlyContinue
+          # Limpa o projeto de referências pagas
           (Get-Content "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj") -replace 'Telerik.WinControls', 'System.Windows.Forms' | Set-Content "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
 
       - name: Build Executável
