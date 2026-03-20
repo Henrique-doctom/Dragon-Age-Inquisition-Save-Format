@@ -5,22 +5,27 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4  # Atualizado para v4
+      - uses: actions/checkout@v4
 
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2 # Atualizado para v2
+        uses: microsoft/setup-msbuild@v2
 
       - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2 # Necessário para restaurar pacotes antigos
+        uses: NuGet/setup-nuget@v2
 
       - name: Restore NuGet Packages
         run: nuget restore "Dragon Age Inquisition Save Editor.sln"
 
-      - name: Build Solution
-        run: msbuild "Dragon Age Inquisition Save Editor.sln" /p:Configuration=Release /p:Platform="Any CPU"
+      - name: Build Solution (Force Retarget)
+        run: |
+          msbuild "Dragon Age Inquisition Save Editor.sln" `
+          /p:Configuration=Release `
+          /p:Platform="Any CPU" `
+          /p:TargetFrameworkVersion=v4.8 `
+          /p:OutDir=BuildOutput/
 
       - name: Upload Executable
-        uses: actions/upload-artifact@v4 # O "pulo do gato": mudamos de v3 para v4
+        uses: actions/upload-artifact@v4
         with:
           name: DragonAgeEditor_Henrique
-          path: "Dragon Age Inquisition Save Editor/bin/Release/"
+          path: "Dragon Age Inquisition Save Editor/BuildOutput/"
