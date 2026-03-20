@@ -10,22 +10,36 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Matar a Telerik e Licenças
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore NuGet Packages
+        run: nuget restore "Dragon Age Inquisition Save Editor.sln"
+
+      - name: Limpeza Profissional (Telerik e Licenças)
+        shell: powershell
         run: |
-          # Deleta o arquivo de licença que causou o erro LC0003
+          $projFile = "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
+          
+          # 1. Deleta o arquivo físico de licença que causou o erro LC0000
           Remove-Item "Dragon Age Inquisition Save Editor/Properties/licenses.licx" -ErrorAction SilentlyContinue
-          # Limpa o projeto de referências pagas
-          (Get-Content "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj") -replace 'Telerik.WinControls', 'System.Windows.Forms' | Set-Content "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
+          
+          # 2. Remove a instrução de compilar o licenses.licx de dentro do XML do projeto
+          (Get-Content $projFile) -replace '<EmbeddedResource Include="Properties\\licenses.licx" />', '' | Set-Content $projFile
+          
+          # 3. Troca referências da Telerik por System.Windows.Forms (Componentes padrão)
+          (Get-Content $projFile) -replace 'Telerik.WinControls', 'System.Windows.Forms' | Set-Content $projFile
 
       - name: Build Executável
         run: |
           msbuild "Dragon Age Inquisition Save Editor.sln" `
           /p:Configuration=Release `
           /p:Platform="Any CPU" `
-          /p:TargetFrameworkVersion=v4.8
+          /p:TargetFrameworkVersion=v4.8 `
+          /p:OutDir=BuildOutput/
 
       - name: Upload Editor EXE
         uses: actions/upload-artifact@v4
         with:
-          name: Editor_DAI_Henrique
-          path: "**/bin/Release/*.exe"
+          name: Editor_DAI_Henrique_Final
+          path: "Dragon Age Inquisition Save Editor/BuildOutput/*.exe"
