@@ -3,18 +3,24 @@ on: [push, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: windows-latest  # Vamos rodar em Windows para gerar o .exe perfeito
+    runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4  # Atualizado para v4
+
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1.1
+        uses: microsoft/setup-msbuild@v2 # Atualizado para v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2 # Necessário para restaurar pacotes antigos
+
+      - name: Restore NuGet Packages
+        run: nuget restore "Dragon Age Inquisition Save Editor.sln"
 
       - name: Build Solution
-        run: msbuild "Dragon Age Inquisition Save Editor.sln" /p:Configuration=Release
+        run: msbuild "Dragon Age Inquisition Save Editor.sln" /p:Configuration=Release /p:Platform="Any CPU"
 
       - name: Upload Executable
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4 # O "pulo do gato": mudamos de v3 para v4
         with:
-          name: DragonAgeEditor
+          name: DragonAgeEditor_Henrique
           path: "Dragon Age Inquisition Save Editor/bin/Release/"
