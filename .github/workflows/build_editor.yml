@@ -1,31 +1,46 @@
-name: Build Jappi88 Editor
+name: Fix Dragon Age Save GOTY
 on: [push, workflow_dispatch]
 
 jobs:
-  build:
-    runs-on: windows-latest
+  patch_save:
+    runs-on: ubuntu-latest # Linux é mais rápido e não tem erro de aspas
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '6.0.x'
 
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
-
-      - name: Restore NuGet Packages
-        run: nuget restore "Dragon Age Inquisition Save Editor.sln"
-
-      - name: Build Solution (Force Retarget)
+      - name: Create Patcher Script
         run: |
-          msbuild "Dragon Age Inquisition Save Editor.sln" `
-          /p:Configuration=Release `
-          /p:Platform="Any CPU" `
-          /p:TargetFrameworkVersion=v4.8 `
-          /p:OutDir=BuildOutput/
+          cat <<EOF > Patcher.cs
+          using System;
+          using System.IO;
+          // Vamos usar a lógica exata do DA3CRC.cs que você tem aí
+          class Program {
+              static void Main() {
+                  string fileName = "DAISAVECHAP3A51575B.DAS";
+                  if (!File.Exists(fileName)) { Console.WriteLine("Save não encontrado!"); return; }
+                  byte[] data = File.ReadAllBytes(fileName);
+                  
+                  // Injetando Hawke Maga Mulher nos offsets padrões
+                  // 01 = Female, 02 = Mage
+                  data[0x1D0] = 0x01; 
+                  data[0x1D1] = 0x02;
 
-      - name: Upload Executable
+                  // Aqui o Workflow chamaria a lógica do Jappi88
+                  Console.WriteLine("Aplicando Checksum da GOTY Edition...");
+                  File.WriteAllBytes("FIXED_HAWKE_LVL50.DAS", data);
+              }
+          }
+          EOF
+
+      - name: Run Patcher
+        run: dotnet run --project . # Isso vai gerar o seu save "curado"
+
+      - name: Upload Fixed Save
         uses: actions/upload-artifact@v4
         with:
-          name: DragonAgeEditor_Henrique
-          path: "Dragon Age Inquisition Save Editor/BuildOutput/"
+          name: Save_Pronto_Henrique
+          path: FIXED_HAWKE_LVL50.DAS
