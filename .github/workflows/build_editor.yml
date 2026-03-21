@@ -1,4 +1,4 @@
-name: Gerar Editor EXE Henrique - v4
+name: Gerar Editor EXE Henrique - Suporte Xbox 360
 on: [push, workflow_dispatch]
 
 jobs:
@@ -16,25 +16,35 @@ jobs:
       - name: Restore NuGet Packages
         run: nuget restore "Dragon Age Inquisition Save Editor.sln"
 
-      - name: Limpeza e Atualização para .NET 4.8
+      - name: Patch de Código (Telerik + Cabeçalho AGN)
         shell: powershell
         run: |
           $projFile = "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
           
-          # 1. Remove licenças e Telerik
+          # 1. Limpeza de Licenças e Referências
           Remove-Item "Dragon Age Inquisition Save Editor/Properties/licenses.licx" -ErrorAction SilentlyContinue
-          (Get-Content $projFile) -replace '<EmbeddedResource Include="Properties\\licenses.licx" />', '' `
-                                  -replace 'Telerik.WinControls', 'System.Windows.Forms' `
+          (Get-Content $projFile) -replace 'Telerik.WinControls', 'System.Windows.Forms' `
                                   -replace '<TargetFrameworkVersion>v4.0</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>' | Set-Content $projFile
           
-          # 2. Limpa o código C# (Telerik to WinForms)
+          # 2. Modificação Global do Código (.cs)
           Get-ChildItem -Recurse -Filter *.cs | ForEach-Object {
             $c = Get-Content $_.FullName
+            
+            # --- TROCA TELERIK POR WINFORMS (Evita erro de Memória) ---
+            $c = $c -replace 'using Telerik.WinControls.*;', 'using System.Windows.Forms;'
             $c = $c -replace 'RadForm', 'Form' -replace 'RadButton', 'Button' -replace 'RadLabel', 'Label'
+            $c = $c -replace 'RadGridView', 'DataGridView' -replace 'RadMessageBox', 'MessageBox'
+            
+            # --- PATCH PARA ACEITAR CABEÇALHO AGN (Xbox 360) ---
+            # Troca a verificação de texto "DAI" por "AGN"
+            $c = $c -replace '"DAI"', '"AGN"'
+            # Troca a verificação hexadecimal do cabeçalho (se houver)
+            $c = $c -replace '0x494144', '0x4E4741' 
+            
             Set-Content $_.FullName $c
           }
 
-      - name: Build Executável (Forçando .NET 4.8)
+      - name: Build Executável (Release Any CPU)
         run: |
           msbuild "Dragon Age Inquisition Save Editor.sln" `
           /p:Configuration=Release `
@@ -42,8 +52,8 @@ jobs:
           /p:TargetFrameworkVersion=v4.8 `
           /p:OutDir=BuildOutput/
 
-      - name: Upload Editor Final
+      - name: Upload Editor Final Henrique
         uses: actions/upload-artifact@v4
         with:
-          name: Editor_DAI_Henrique_v4
+          name: Editor_DAI_Xbox360_Final
           path: "**/BuildOutput/*.exe"
