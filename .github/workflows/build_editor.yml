@@ -1,4 +1,4 @@
-name: Gerar Editor EXE Henrique
+name: Gerar Editor EXE Henrique - Estável
 on: [push, workflow_dispatch]
 
 jobs:
@@ -16,30 +16,41 @@ jobs:
       - name: Restore NuGet Packages
         run: nuget restore "Dragon Age Inquisition Save Editor.sln"
 
-      - name: Limpeza Profissional (Telerik e Licenças)
+      - name: Limpeza e Conversão de Código (Anti-Memory Crash)
         shell: powershell
         run: |
           $projFile = "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
           
-          # 1. Deleta o arquivo físico de licença que causou o erro LC0000
+          # 1. Remove arquivo de licença problemático
           Remove-Item "Dragon Age Inquisition Save Editor/Properties/licenses.licx" -ErrorAction SilentlyContinue
           
-          # 2. Remove a instrução de compilar o licenses.licx de dentro do XML do projeto
-          (Get-Content $projFile) -replace '<EmbeddedResource Include="Properties\\licenses.licx" />', '' | Set-Content $projFile
+          # 2. Limpa o arquivo de projeto (.csproj)
+          (Get-Content $projFile) -replace '<EmbeddedResource Include="Properties\\licenses.licx" />', '' `
+                                  -replace 'Telerik.WinControls.UI', 'System.Windows.Forms' `
+                                  -replace 'Telerik.WinControls', 'System.Windows.Forms' | Set-Content $projFile
           
-          # 3. Troca referências da Telerik por System.Windows.Forms (Componentes padrão)
-          (Get-Content $projFile) -replace 'Telerik.WinControls', 'System.Windows.Forms' | Set-Content $projFile
+          # 3. Limpa o código C# (.cs) para não tentar chamar funções da Telerik
+          Get-ChildItem -Recurse -Filter *.cs | ForEach-Object {
+            $c = Get-Content $_.FullName
+            $c = $c -replace 'using Telerik.WinControls.*;', 'using System.Windows.Forms;'
+            $c = $c -replace 'RadForm', 'Form'
+            $c = $c -replace 'RadButton', 'Button'
+            $c = $c -replace 'RadLabel', 'Label'
+            $c = $c -replace 'RadGridView', 'DataGridView'
+            Set-Content $_.FullName $c
+          }
 
-      - name: Build Executável
+      - name: Build Executável (Focado em Estabilidade)
         run: |
           msbuild "Dragon Age Inquisition Save Editor.sln" `
           /p:Configuration=Release `
-          /p:Platform="Any CPU" `
+          /p:Platform="x86" `
           /p:TargetFrameworkVersion=v4.8 `
+          /p:Optimize=true `
           /p:OutDir=BuildOutput/
 
-      - name: Upload Editor EXE
+      - name: Upload Editor Final
         uses: actions/upload-artifact@v4
         with:
-          name: Editor_DAI_Henrique_Final
+          name: Editor_DAI_Henrique_v2
           path: "Dragon Age Inquisition Save Editor/BuildOutput/*.exe"
