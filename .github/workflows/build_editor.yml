@@ -1,4 +1,4 @@
-name: Gerar Editor EXE Henrique - Sem Trava
+name: Gerar Editor EXE Henrique - Final Fix
 on: [push, workflow_dispatch]
 
 jobs:
@@ -16,40 +16,41 @@ jobs:
       - name: Restore NuGet Packages
         run: nuget restore "Dragon Age Inquisition Save Editor.sln"
 
-      - name: Patch Definitivo (Ignorar Header)
+      - name: Limpeza Profunda e Patch de Header
         shell: powershell
         run: |
           $projFile = "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
           
-          # 1. Limpa Referências e Atualiza .NET
-          (Get-Content $projFile) -replace 'Telerik.WinControls', 'System.Windows.Forms' `
+          # 1. Remove qualquer menção a licenças e Telerik no arquivo de projeto
+          (Get-Content $projFile) -replace '<EmbeddedResource Include="Properties\\licenses.licx" />', '' `
+                                  -replace 'Telerik.WinControls', 'System.Windows.Forms' `
                                   -replace '<TargetFrameworkVersion>v4.0</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>' | Set-Content $projFile
           
-          # 2. Patch de Código Seguro (Comentando o Erro)
+          # 2. Deleta o arquivo de licença fisicamente
+          Remove-Item "Dragon Age Inquisition Save Editor/Properties/licenses.licx" -Force -ErrorAction SilentlyContinue
+          
+          # 3. Patch no Código para aceitar AGN (Xbox 360) de forma segura
           Get-ChildItem -Recurse -Filter *.cs | ForEach-Object {
             $c = Get-Content $_.FullName
-            
-            # Troca RadForm por Form para economizar RAM
             $c = $c -replace 'RadForm', 'Form' -replace 'RadButton', 'Button'
-            
-            # PROCURA E DESATIVA A EXCEÇÃO DO HEADER (Mata o erro da imagem)
-            # Ele vai procurar a linha que começa com 'throw' e tem o erro, e colocar '//' na frente
-            $c = $c -replace 'throw new Exception\("Invalid Package Header!"\);', '// throw new Exception("Invalid Package Header!");'
-            
+            # Só troca o texto do erro para não quebrar a sintaxe
+            $c = $c -replace '"DAI"', '"AGN"' 
             Set-Content $_.FullName $c
           }
 
-      - name: Build Executável (Release)
+      - name: Build Executável (Ignorando Licenças)
         run: |
           msbuild "Dragon Age Inquisition Save Editor.sln" `
           /p:Configuration=Release `
           /p:Platform="Any CPU" `
           /p:TargetFrameworkVersion=v4.8 `
           /p:OutDir=BuildOutput/ `
-          /p:ExecuteLicenseCompiler=false
+          /p:ExecuteLicenseCompiler=false `
+          /p:UseCommonOutputDirectory=true `
+          /t:Build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Editor_Henrique_Sem_Erro
+          name: Editor_DAI_Henrique_vFinal
           path: "**/BuildOutput/*.exe"
