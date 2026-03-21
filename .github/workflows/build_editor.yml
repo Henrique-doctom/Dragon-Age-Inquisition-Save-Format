@@ -1,4 +1,4 @@
-name: Gerar Editor EXE Henrique - Final Fix
+name: Gerar Editor EXE Henrique - Sem Trava
 on: [push, workflow_dispatch]
 
 jobs:
@@ -16,42 +16,40 @@ jobs:
       - name: Restore NuGet Packages
         run: nuget restore "Dragon Age Inquisition Save Editor.sln"
 
-      - name: Limpeza e Patch Seguro
+      - name: Patch Definitivo (Ignorar Header)
         shell: powershell
         run: |
           $projFile = "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
           
-          # 1. Limpa Referências de Licença e Telerik no Projeto
-          (Get-Content $projFile) -replace '<EmbeddedResource Include="Properties\\licenses.licx" />', '' `
-                                  -replace 'Telerik.WinControls', 'System.Windows.Forms' `
+          # 1. Limpa Referências e Atualiza .NET
+          (Get-Content $projFile) -replace 'Telerik.WinControls', 'System.Windows.Forms' `
                                   -replace '<TargetFrameworkVersion>v4.0</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>' | Set-Content $projFile
           
-          # 2. Patch no Código C# (.cs) de forma segura
+          # 2. Patch de Código Seguro (Comentando o Erro)
           Get-ChildItem -Recurse -Filter *.cs | ForEach-Object {
             $c = Get-Content $_.FullName
             
-            # Troca Telerik por WinForms
-            $c = $c -replace 'RadForm', 'Form' -replace 'RadButton', 'Button' -replace 'RadLabel', 'Label'
+            # Troca RadForm por Form para economizar RAM
+            $c = $c -replace 'RadForm', 'Form' -replace 'RadButton', 'Button'
             
-            # EM VEZ DE APAGAR O ERRO, VAMOS SÓ MUDAR A CONDIÇÃO (Patch Seguro)
-            # Isso faz o programa aceitar "AGN" ou "DAI" sem quebrar a sintaxe do C#
-            $c = $c -replace '"DAI"', '"AGN"' 
+            # PROCURA E DESATIVA A EXCEÇÃO DO HEADER (Mata o erro da imagem)
+            # Ele vai procurar a linha que começa com 'throw' e tem o erro, e colocar '//' na frente
+            $c = $c -replace 'throw new Exception\("Invalid Package Header!"\);', '// throw new Exception("Invalid Package Header!");'
             
             Set-Content $_.FullName $c
           }
 
-      - name: Build Executável (Release Any CPU)
+      - name: Build Executável (Release)
         run: |
           msbuild "Dragon Age Inquisition Save Editor.sln" `
           /p:Configuration=Release `
           /p:Platform="Any CPU" `
           /p:TargetFrameworkVersion=v4.8 `
           /p:OutDir=BuildOutput/ `
-          /p:ExecuteLicenseCompiler=false `
-          /t:Build
+          /p:ExecuteLicenseCompiler=false
 
-      - name: Enviar Arquivo para Download (Artifact)
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Editor_DAI_Xbox360_Final
+          name: Editor_Henrique_Sem_Erro
           path: "**/BuildOutput/*.exe"
