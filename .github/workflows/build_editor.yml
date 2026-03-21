@@ -21,12 +21,12 @@ jobs:
         run: |
           $projFile = "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
           
-          # 1. Remove qualquer menção a licenças no arquivo de projeto (.csproj)
+          # 1. Remove menções a licenças no .csproj
           (Get-Content $projFile) -replace '<EmbeddedResource Include="Properties\\licenses.licx" />', '' `
                                   -replace 'Telerik.WinControls', 'System.Windows.Forms' `
                                   -replace '<TargetFrameworkVersion>v4.0</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>' | Set-Content $projFile
           
-          # 2. Deleta o arquivo físico se ele existir
+          # 2. Deleta o arquivo físico de licença
           Remove-Item "Dragon Age Inquisition Save Editor/Properties/licenses.licx" -Force -ErrorAction SilentlyContinue
           
           # 3. Patch de Código para aceitar o cabeçalho AGN (Xbox 360)
@@ -46,3 +46,9 @@ jobs:
           /p:OutDir=BuildOutput/ `
           /p:ExecuteLicenseCompiler=false `
           /t:Build
+
+      - name: Enviar Arquivo Final (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Editor_DAI_Xbox360_Final
+          path: "**/BuildOutput/*.exe"
