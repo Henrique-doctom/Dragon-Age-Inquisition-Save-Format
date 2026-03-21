@@ -1,4 +1,4 @@
-name: Gerar Editor EXE Henrique - Estável
+name: Gerar Editor EXE Henrique - Final
 on: [push, workflow_dispatch]
 
 jobs:
@@ -16,20 +16,18 @@ jobs:
       - name: Restore NuGet Packages
         run: nuget restore "Dragon Age Inquisition Save Editor.sln"
 
-      - name: Limpeza e Conversão de Código (Anti-Memory Crash)
+      - name: Limpeza e Conversão (Telerik to WinForms)
         shell: powershell
         run: |
           $projFile = "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
           
-          # 1. Remove arquivo de licença problemático
+          # Remove licenças e referências Telerik
           Remove-Item "Dragon Age Inquisition Save Editor/Properties/licenses.licx" -ErrorAction SilentlyContinue
-          
-          # 2. Limpa o arquivo de projeto (.csproj)
           (Get-Content $projFile) -replace '<EmbeddedResource Include="Properties\\licenses.licx" />', '' `
                                   -replace 'Telerik.WinControls.UI', 'System.Windows.Forms' `
                                   -replace 'Telerik.WinControls', 'System.Windows.Forms' | Set-Content $projFile
           
-          # 3. Limpa o código C# (.cs) para não tentar chamar funções da Telerik
+          # Substitui classes Telerik por nativas no código
           Get-ChildItem -Recurse -Filter *.cs | ForEach-Object {
             $c = Get-Content $_.FullName
             $c = $c -replace 'using Telerik.WinControls.*;', 'using System.Windows.Forms;'
@@ -37,20 +35,19 @@ jobs:
             $c = $c -replace 'RadButton', 'Button'
             $c = $c -replace 'RadLabel', 'Label'
             $c = $c -replace 'RadGridView', 'DataGridView'
+            $c = $c -replace 'RadMessageBox', 'MessageBox'
             Set-Content $_.FullName $c
           }
 
-      - name: Build Executável (Focado em Estabilidade)
+      - name: Build Executável (Any CPU)
         run: |
           msbuild "Dragon Age Inquisition Save Editor.sln" `
           /p:Configuration=Release `
-          /p:Platform="x86" `
-          /p:TargetFrameworkVersion=v4.8 `
-          /p:Optimize=true `
+          /p:Platform="Any CPU" `
           /p:OutDir=BuildOutput/
 
       - name: Upload Editor Final
         uses: actions/upload-artifact@v4
         with:
-          name: Editor_DAI_Henrique_v2
-          path: "Dragon Age Inquisition Save Editor/BuildOutput/*.exe"
+          name: Editor_DAI_Henrique_v3
+          path: "**/BuildOutput/*.exe"
