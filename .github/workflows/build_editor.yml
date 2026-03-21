@@ -16,7 +16,7 @@ jobs:
       - name: Restore NuGet Packages
         run: nuget restore "Dragon Age Inquisition Save Editor.sln"
 
-      - name: Limpeza e Patch Agressivo (Telerik + Ignorar Header)
+      - name: Limpeza e Patch Seguro
         shell: powershell
         run: |
           $projFile = "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
@@ -26,23 +26,16 @@ jobs:
                                   -replace 'Telerik.WinControls', 'System.Windows.Forms' `
                                   -replace '<TargetFrameworkVersion>v4.0</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>' | Set-Content $projFile
           
-          # 2. Deleta arquivo físico de licença
-          Remove-Item "Dragon Age Inquisition Save Editor/Properties/licenses.licx" -Force -ErrorAction SilentlyContinue
-          
-          # 3. Patch no Código C# (.cs)
+          # 2. Patch no Código C# (.cs) de forma segura
           Get-ChildItem -Recurse -Filter *.cs | ForEach-Object {
             $c = Get-Content $_.FullName
             
-            # --- TROCA TELERIK POR WINFORMS (Evita erro de Memória) ---
-            $c = $c -replace 'using Telerik.WinControls.*;', 'using System.Windows.Forms;'
+            # Troca Telerik por WinForms
             $c = $c -replace 'RadForm', 'Form' -replace 'RadButton', 'Button' -replace 'RadLabel', 'Label'
-            $c = $c -replace 'RadGridView', 'DataGridView' -replace 'RadMessageBox', 'MessageBox'
             
-            # --- MATA O ERRO "Invalid Package Header" ---
-            # Isso força o programa a NÃO disparar o erro e tentar ler o arquivo mesmo assim
-            $c = $c -replace 'throw new Exception\("Invalid Package Header!"\);', '// Erro Ignorado pelo Henrique'
-            $c = $c -replace 'MessageBox.Show\("Invalid Package Header!"\);', '// Erro Ignorado pelo Henrique'
-            $c = $c -replace 'return false;', 'return true;' # Força a validação a passar sempre
+            # EM VEZ DE APAGAR O ERRO, VAMOS SÓ MUDAR A CONDIÇÃO (Patch Seguro)
+            # Isso faz o programa aceitar "AGN" ou "DAI" sem quebrar a sintaxe do C#
+            $c = $c -replace '"DAI"', '"AGN"' 
             
             Set-Content $_.FullName $c
           }
