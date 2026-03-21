@@ -1,4 +1,4 @@
-name: Gerar Editor EXE Henrique - Final
+name: Gerar Editor EXE Henrique - v4
 on: [push, workflow_dispatch]
 
 jobs:
@@ -16,38 +16,34 @@ jobs:
       - name: Restore NuGet Packages
         run: nuget restore "Dragon Age Inquisition Save Editor.sln"
 
-      - name: Limpeza e Conversão (Telerik to WinForms)
+      - name: Limpeza e Atualização para .NET 4.8
         shell: powershell
         run: |
           $projFile = "Dragon Age Inquisition Save Editor/Dragon Age Inquisition Save Editor.csproj"
           
-          # Remove licenças e referências Telerik
+          # 1. Remove licenças e Telerik
           Remove-Item "Dragon Age Inquisition Save Editor/Properties/licenses.licx" -ErrorAction SilentlyContinue
           (Get-Content $projFile) -replace '<EmbeddedResource Include="Properties\\licenses.licx" />', '' `
-                                  -replace 'Telerik.WinControls.UI', 'System.Windows.Forms' `
-                                  -replace 'Telerik.WinControls', 'System.Windows.Forms' | Set-Content $projFile
+                                  -replace 'Telerik.WinControls', 'System.Windows.Forms' `
+                                  -replace '<TargetFrameworkVersion>v4.0</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>' | Set-Content $projFile
           
-          # Substitui classes Telerik por nativas no código
+          # 2. Limpa o código C# (Telerik to WinForms)
           Get-ChildItem -Recurse -Filter *.cs | ForEach-Object {
             $c = Get-Content $_.FullName
-            $c = $c -replace 'using Telerik.WinControls.*;', 'using System.Windows.Forms;'
-            $c = $c -replace 'RadForm', 'Form'
-            $c = $c -replace 'RadButton', 'Button'
-            $c = $c -replace 'RadLabel', 'Label'
-            $c = $c -replace 'RadGridView', 'DataGridView'
-            $c = $c -replace 'RadMessageBox', 'MessageBox'
+            $c = $c -replace 'RadForm', 'Form' -replace 'RadButton', 'Button' -replace 'RadLabel', 'Label'
             Set-Content $_.FullName $c
           }
 
-      - name: Build Executável (Any CPU)
+      - name: Build Executável (Forçando .NET 4.8)
         run: |
           msbuild "Dragon Age Inquisition Save Editor.sln" `
           /p:Configuration=Release `
           /p:Platform="Any CPU" `
+          /p:TargetFrameworkVersion=v4.8 `
           /p:OutDir=BuildOutput/
 
       - name: Upload Editor Final
         uses: actions/upload-artifact@v4
         with:
-          name: Editor_DAI_Henrique_v3
+          name: Editor_DAI_Henrique_v4
           path: "**/BuildOutput/*.exe"
